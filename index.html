@@ -14,17 +14,18 @@
     display:flex; flex-direction:column;
     overflow:hidden;
   }
-  header {
-    padding: 14px 16px 6px;
-    text-align:center;
-  }
+  header { padding: 14px 16px 4px; text-align:center; }
   header h1 { font-size: 22px; letter-spacing: .04em; color:#2b6a5c; }
   header p { font-size: 13px; color:#6b8a81; margin-top:2px; }
-  #stage { flex:1; position:relative; }
-  model-viewer {
-    width:100%; height:100%;
-    --poster-color: transparent;
+  .tabs { display:flex; gap:8px; justify-content:center; padding: 8px 12px 2px; }
+  .tabs button {
+    font-family:inherit; font-size:15px; font-weight:700;
+    padding: 9px 16px; border-radius:999px; border:2px solid #b96a84;
+    background:#fff; color:#b96a84; cursor:pointer;
   }
+  .tabs button.on { background:#b96a84; color:#fff; }
+  #stage { flex:1; position:relative; }
+  model-viewer { width:100%; height:100%; --poster-color: transparent; }
   #loading {
     position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:10px;
@@ -36,13 +37,13 @@
     padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
     display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
   }
-  button {
+  footer button {
     font-family:inherit; font-size:16px; font-weight:700;
     padding: 12px 20px; border-radius: 999px; border: 2px solid #2b6a5c;
     background:#fff; color:#2b6a5c; cursor:pointer;
     box-shadow: 0 2px 6px rgba(43,106,92,.18);
   }
-  button.on { background:#2b6a5c; color:#fff; }
+  footer button.on { background:#2b6a5c; color:#fff; }
   .hint { text-align:center; font-size:12px; color:#7d9a92; padding-bottom:8px; }
 </style>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
@@ -50,8 +51,13 @@
 <body>
 <header>
   <h1>✦ メイド 3Dビューア ✦</h1>
-  <p>歩く姿をスマホで見られます</p>
+  <p id="subtitle">歩く姿をスマホで見られます</p>
 </header>
+
+<div class="tabs">
+  <button id="tabWalk" class="on">🚶 歩行バージョン</button>
+  <button id="tabArt">🎂 元絵バージョン</button>
+</div>
 
 <div id="stage">
   <model-viewer id="mv"
@@ -66,7 +72,7 @@
     min-camera-orbit="auto auto 1.6m"
     max-camera-orbit="auto auto 6m"
     field-of-view="32deg"
-    alt="歩くメイドの3Dモデル">
+    alt="メイドの3Dモデル">
   </model-viewer>
   <div id="loading">
     <div>読み込み中…</div>
@@ -86,6 +92,16 @@
   const loading = document.getElementById('loading');
   const barfill = document.getElementById('barfill');
   const pct = document.getElementById('pct');
+  const subtitle = document.getElementById('subtitle');
+  const btnWalk = document.getElementById('btnWalk');
+  const btnSpin = document.getElementById('btnSpin');
+  const tabWalk = document.getElementById('tabWalk');
+  const tabArt = document.getElementById('tabArt');
+
+  let mode = 'walk';       // 'walk' | 'art'
+  let walking = true;
+  let spin = false;
+
   mv.addEventListener('progress', (e) => {
     const p = Math.round((e.detail.totalProgress || 0) * 100);
     barfill.style.width = p + '%';
@@ -94,16 +110,47 @@
   mv.addEventListener('load', () => { loading.style.display = 'none'; });
   mv.addEventListener('error', () => { pct.textContent = '読み込みに失敗しました。通信環境の良い場所で開き直してください'; });
 
-  const btnWalk = document.getElementById('btnWalk');
-  let walking = true;
+  function showLoading() {
+    loading.style.display = 'flex';
+    barfill.style.width = '0%';
+    pct.textContent = '0%';
+  }
+
+  function setMode(next) {
+    if (mode === next) return;
+    mode = next;
+    tabWalk.classList.toggle('on', mode === 'walk');
+    tabArt.classList.toggle('on', mode === 'art');
+    showLoading();
+    if (mode === 'walk') {
+      subtitle.textContent = '歩く姿をスマホで見られます';
+      btnWalk.style.display = '';
+      mv.autoRotate = spin;
+      mv.src = 'maid.glb';
+      mv.setAttribute('autoplay', '');
+      walking = true;
+      btnWalk.textContent = '⏸ 歩くのを止める';
+      btnWalk.classList.add('on');
+    } else {
+      subtitle.textContent = '元のイラストから作った立ち姿です（歩きません）';
+      btnWalk.style.display = 'none';
+      mv.removeAttribute('autoplay');
+      mv.src = 'maid2.glb';
+      mv.autoRotate = true;   // 元絵版は自動回転でぐるっと見せる
+      btnSpin.classList.add('on');
+      spin = true;
+    }
+    mv.cameraOrbit = '0deg 72deg 3.2m';
+  }
+  tabWalk.addEventListener('click', () => setMode('walk'));
+  tabArt.addEventListener('click', () => setMode('art'));
+
   btnWalk.addEventListener('click', () => {
     walking = !walking;
     if (walking) { mv.play(); btnWalk.textContent = '⏸ 歩くのを止める'; btnWalk.classList.add('on'); }
     else { mv.pause(); btnWalk.textContent = '▶ 歩かせる'; btnWalk.classList.remove('on'); }
   });
 
-  const btnSpin = document.getElementById('btnSpin');
-  let spin = false;
   btnSpin.addEventListener('click', () => {
     spin = !spin;
     mv.autoRotate = spin;
